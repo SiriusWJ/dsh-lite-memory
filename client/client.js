@@ -69,6 +69,8 @@ window.__ModuleLoader__.load({
       collapseAll: "全部折叠",
       expandAll: "全部展开",
       monthUnits: "个月",
+      totalEntries: "条目",
+      highEntries: "高优先级",
       qUrgentImportant: "重要紧急",
       qImportant: "重要不紧急",
       qUrgent: "紧急不重要",
@@ -125,6 +127,8 @@ window.__ModuleLoader__.load({
       collapseAll: "Collapse all",
       expandAll: "Expand all",
       monthUnits: "mo",
+      totalEntries: "Entries",
+      highEntries: "High priority",
       qUrgentImportant: "Urgent & important",
       qImportant: "Important",
       qUrgent: "Urgent",
@@ -259,7 +263,7 @@ window.__ModuleLoader__.load({
               h("span", { className: "lmem-month-count" }, g.entries.length),
             ),
             !isCollapsed ? g.entries.map(function (en) {
-              return h("div", { key: en.id, className: "lmem-entry" },
+              return h("div", { key: en.id, className: "lmem-entry", style: { "--lmem-pri-color": (PRIORITY_COLORS[en.priority] || "#8a94a6") } },
                 h("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
                 h("div", { className: "lmem-entry-body" },
                   h("div", { className: "lmem-entry-title" }, en.title),
@@ -429,13 +433,39 @@ window.__ModuleLoader__.load({
         var s3 = react.useState(null)
         var editing = s3[0]
         var setEditing = s3[1]
+        // 记忆子页: scope=global | project; workspace 为项目时的工作区名
+        var s4 = react.useState("global")
+        var scope = s4[0]
+        var setScope = s4[1]
+        var s5 = react.useState("")
+        var ws = s5[0]
+        var setWs = s5[1]
+        var s6 = react.useState([])
+        var workspaces = s6[0]
+        var setWorkspaces = s6[1]
+        // 统计
+        var s7 = react.useState({ total: 0, high: 0 })
+        var stats = s7[0]
+        var setStats = s7[1]
 
-        var refresh = function () {
-          return call("entries", { scope: "global", workspace: "" }).then(function (r) {
-            if (r && r.ok) setEntries(r.entries || [])
+        var refresh = function (whichScope, whichWs) {
+          var sc = whichScope !== undefined ? whichScope : scope
+          var w = whichWs !== undefined ? whichWs : ws
+          return call("entries", { scope: sc, workspace: sc === "project" ? w : "" }).then(function (r) {
+            if (r && r.ok) {
+              setEntries(r.entries || [])
+              var list = r.entries || []
+              setStats({ total: list.length, high: list.filter(function (en) { return en.priority === "高" }).length })
+            }
           })
         }
-        react.useEffect(function () { refresh() }, [])
+        react.useEffect(function () {
+          // 初始: 全局 + 工作区列表
+          call("workspaces", {}).then(function (r) {
+            if (r && r.ok) setWorkspaces(r.workspaces || [])
+          })
+          refresh("global", "")
+        }, [])
 
         var saveEntry = function () {
           if (!String(editing.title || "").trim()) { setStatus(t("titleRequired")); return }
@@ -447,8 +477,8 @@ window.__ModuleLoader__.load({
             payload.id = editing.id
             p = post("entries/update", payload)
           } else {
-            payload.scope = "global"
-            payload.workspace = ""
+            payload.scope = scope
+            payload.workspace = scope === "project" ? ws : ""
             payload.sourceType = "user"   // UI 手动输入 → 来源标记为「用户」
             p = post("entries/add", payload)
           }
@@ -465,7 +495,25 @@ window.__ModuleLoader__.load({
         var subBody = null
         if (sub === "memory") {
           subBody = el("div", { className: "lmem-view" },
+            // 范围选择器: 全局 / 工作区下拉
+            el("div", { className: "lmem-scopebar" },
+              el("button", { className: "lmem-tab" + (scope === "global" ? " active" : ""), onClick: function () { setScope("global"); setWs(""); refresh("global", "") } }, t("globalTab")),
+              el("div", { className: "lmem-field lmem-grow" },
+                el("select", { className: "lmem-input", value: scope === "project" ? ws : "", onChange: function (e) {
+                    var v = e.target.value
+                    if (v === "__global__") { setScope("global"); setWs(""); refresh("global", ""); return }
+                    setScope("project"); setWs(v); refresh("project", v)
+                  } },
+                  el("option", { value: "__global__" }, t("projectTab") + " · " + t("workspace")),
+                  (workspaces.length ? workspaces : ["-"]).map(function (w) { return el("option", { key: w, value: w }, w) }),
+                ),
+              ),
+            ),
+            // 统计 + 操作
             el("div", { className: "lmem-row" },
+              el("span", { className: "lmem-stat" }, t("totalEntries") + ": " + stats.total),
+              el("span", { className: "lmem-stat lmem-stat-high" }, t("highEntries") + ": " + stats.high),
+              el("span", { style: { flex: 1 } }),
               el("button", { className: "lmem-btn primary", onClick: function () { setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
               el("button", { className: "lmem-btn", onClick: function () { refresh() } }, t("refresh")),
               el("span", { className: "lmem-status" }, status),
@@ -781,6 +829,17 @@ window.__ModuleLoader__.load({
         ".lmem-cal-q{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor;opacity:.85;white-space:nowrap}" +
         ".lmem-cal-date{white-space:nowrap;font-size:12px;opacity:.8}" +
         ".lmem-cal-title{flex:1;min-width:0;word-break:break-word}" +
+        ".lmem-scopebar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(128,128,128,.05);border:1px solid var(--border-color,rgba(128,128,128,.18))}" +
+        ".lmem-stat{font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(128,128,128,.08);opacity:.85;white-space:nowrap}" +
+        ".lmem-stat-high{color:#d64545;background:rgba(214,69,69,.12)}" +
+        ".lmem-entry{position:relative;overflow:hidden}" +
+        ".lmem-entry::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-pri-color,rgba(128,128,128,.35));border-radius:3px 0 0 3px}" +
+        ".lmem-month-head{transition:background .15s ease}" +
+        ".lmem-month-count{background:rgba(128,128,128,.1);padding:1px 8px;border-radius:999px}" +
+        ".lmem-cal-day{transition:border-color .15s ease,background .15s ease,transform .12s ease}" +
+        ".lmem-cal-day:hover{transform:translateY(-1px)}" +
+        ".lmem-entry-title{font-size:13.5px}" +
+        ".lmem-btn{transition:opacity .15s ease,background .15s ease}" +
         ""
 
       // ── 样式注入（bundle 无 styles builtin，挂 <style> 到 document.head，随插件卸载清理）──
