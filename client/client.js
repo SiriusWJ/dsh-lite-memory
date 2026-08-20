@@ -689,6 +689,19 @@ window.__ModuleLoader__.load({
         ".lmem-cal-title{flex:1;min-width:0;word-break:break-word}" +
         ""
 
+      // ── 样式注入（bundle 无 styles builtin，挂 <style> 到 document.head，随插件卸载清理）──
+      if (typeof document !== "undefined") {
+        ctx.effect(function () {
+          var tag = document.createElement("style")
+          tag.setAttribute("data-lmem-styles", "")
+          tag.textContent = css
+          document.head.appendChild(tag)
+          return function () {
+            if (tag.parentNode) tag.parentNode.removeChild(tag)
+          }
+        }, "dsh-lite-memory: styles")
+      }
+
       // ── 注册 ────────────────────────────────────────────────────────────────
       slots.inject("conversation.view", function () {
         return slots.register(
