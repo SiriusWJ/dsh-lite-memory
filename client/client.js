@@ -377,6 +377,7 @@ window.__ModuleLoader__.load({
             el("button", { className: "lmem-tab" + (tab === "global" ? " active" : ""), onClick: function () { setTab("global") } }, t("globalTab")),
             el("button", { className: "lmem-tab" + (tab === "project" ? " active" : ""), onClick: function () { setTab("project") } }, t("projectTab")),
             el("span", { style: { flex: 1 } }),
+            el("button", { className: "lmem-btn", onClick: function () { refresh() }, title: t("refresh") }, "⟳"),
             el("button", { className: "lmem-btn primary", onClick: function () { setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
           ),
           tab === "project" && workspaces.length > 1
@@ -386,8 +387,11 @@ window.__ModuleLoader__.load({
                     workspaces.map(function (w) { return el("option", { key: w, value: w }, w) }),
                   ),
                 ),
+                el("span", { className: "lmem-status" }, status),
               )
-            : null,
+            : el("div", { className: "lmem-row" },
+                el("span", { className: "lmem-status" }, status),
+              ),
           formVisible
             ? el("div", { className: "lmem-form" },
                 el("div", { className: "lmem-row" },
@@ -402,7 +406,6 @@ window.__ModuleLoader__.load({
                 el("div", { className: "lmem-row" },
                   el("button", { className: "lmem-btn primary", onClick: saveEntry }, t("save")),
                   el("button", { className: "lmem-btn", onClick: function () { setEditing(null) } }, t("cancel")),
-                  el("span", { className: "lmem-status" }, status),
                 ),
               )
             : null,
@@ -412,10 +415,6 @@ window.__ModuleLoader__.load({
                 onDelete: function (id) { deleteEntry(id) },
               })
             : null,
-          !formVisible ? el("div", { className: "lmem-row" },
-            el("button", { className: "lmem-btn", onClick: function () { refresh() } }, t("refresh")),
-            el("span", { className: "lmem-status" }, status),
-          ) : null,
         )
       }
 
@@ -618,26 +617,7 @@ window.__ModuleLoader__.load({
         var dowLabels = ["日", "一", "二", "三", "四", "五", "六"]
 
         var rows = []
-        rows.push(h("div", { className: "lmem-row" },
-          h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { moveMonth(-1) } }, "◀"),
-          h("span", { className: "lmem-cal-month" }, month.year + " / " + String(month.mon).padStart(2, "0")),
-          h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { moveMonth(1) } }, "▶"),
-          h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { var n = new Date(); setMonth({ year: n.getFullYear(), mon: n.getMonth() + 1 }) } }, tt("today")),
-          h("span", { style: { flex: 1 } }),
-          h("button", { className: "lmem-btn primary", onClick: function () { setDraft({ date: today, time: "09:00", quadrant: "重要不紧急", title: "", note: "" }) } }, "+ " + tt("add")),
-        ))
-        // 图例
-        rows.push(h("div", { className: "lmem-row lmem-legend" },
-          Object.keys(QC).map(function (q) {
-            return h("span", { key: q, className: "lmem-legend-item" },
-              h("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 2, background: QC[q], marginRight: 4 } }), tt(q === "重要紧急" ? "qUrgentImportant" : q === "重要不紧急" ? "qImportant" : q === "紧急不重要" ? "qUrgent" : "qNone"))
-          }),
-        ))
-        // 星期表头
-        rows.push(h("div", { className: "lmem-cal-dow" },
-          dowLabels.map(function (dl) { return h("div", { key: dl, className: "lmem-cal-dow-cell" }, dl) }),
-        ))
-        // 月网格
+        // 月网格行（卡片内部使用）
         var gridRows = []
         for (var ci = 0; ci < cells.length; ci += 7) {
           var week = []
@@ -667,7 +647,29 @@ window.__ModuleLoader__.load({
           }
           gridRows.push(h("div", { key: "w" + ci, className: "lmem-cal-gridrow" }, week))
         }
-        rows.push(h("div", null, gridRows))
+        rows.push(h("div", { className: "lmem-cal-card" },
+          h("div", { className: "lmem-row" },
+            h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { moveMonth(-1) } }, "◀"),
+            h("span", { className: "lmem-cal-month" }, month.year + " / " + String(month.mon).padStart(2, "0")),
+            h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { moveMonth(1) } }, "▶"),
+            h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { var n = new Date(); setMonth({ year: n.getFullYear(), mon: n.getMonth() + 1 }) } }, tt("today")),
+            h("span", { style: { flex: 1 } }),
+            h("button", { className: "lmem-btn primary", onClick: function () { setDraft({ date: today, time: "09:00", quadrant: "重要不紧急", title: "", note: "" }) } }, "+ " + tt("add")),
+          ),
+          // 图例
+          h("div", { className: "lmem-row lmem-legend" },
+            Object.keys(QC).map(function (q) {
+              return h("span", { key: q, className: "lmem-legend-item" },
+                h("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 2, background: QC[q], marginRight: 4 } }), tt(q === "重要紧急" ? "qUrgentImportant" : q === "重要不紧急" ? "qImportant" : q === "紧急不重要" ? "qUrgent" : "qNone"))
+            }),
+          ),
+          // 星期表头
+          h("div", { className: "lmem-cal-dow" },
+            dowLabels.map(function (dl) { return h("div", { key: dl, className: "lmem-cal-dow-cell" }, dl) }),
+          ),
+          // 月网格
+          gridRows.map(function (gr) { return gr }),
+        ))
 
         function toggleDone(en) {
           if (saving) return
@@ -749,15 +751,18 @@ window.__ModuleLoader__.load({
           listItems.length === 0
             ? h("div", { className: "lmem-status lmem-center" }, listTab === "pending" ? tt("noPending") : tt("noDone"))
             : listItems.map(function (en) {
-                return h("div", { key: en.id, className: "lmem-cal-item" + (en.done ? " done" : "") },
+                return h("div", { key: en.id, className: "lmem-cal-item" + (en.done ? " done" : ""), style: { "--lmem-q-color": (QC[en.quadrant] || "#8a94a6") } },
                   h("span", { className: "lmem-cal-q", style: { borderColor: (QC[en.quadrant] || "#8a94a6"), color: (QC[en.quadrant] || "#8a94a6") } }, en.quadrant),
-                  h("span", { className: "lmem-cal-date" }, en.date + " " + en.time),
-                  h("span", { className: "lmem-cal-title", style: { textDecoration: en.done ? "line-through" : "none" } }, en.title),
-                  en.note ? h("span", { className: "lmem-status" }, en.note) : null,
-                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { toggleDone(en) } }, en.done ? tt("restore") : tt("done")),
-                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () {
-                    apiPost("calendar/remove", { date: en.date, time: en.time, title: en.title }).then(function () { load() })
-                  } }, tt("del")),
+                  h("div", { className: "lmem-cal-item-body" },
+                    h("div", { className: "lmem-cal-title", style: { textDecoration: en.done ? "line-through" : "none" } }, en.title),
+                    h("div", { className: "lmem-cal-meta" }, en.date + " " + en.time + (en.note ? " · " + en.note : "")),
+                  ),
+                  h("div", { className: "lmem-row lmem-cal-actions" },
+                    h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { toggleDone(en) } }, en.done ? tt("restore") : tt("done")),
+                    h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () {
+                      apiPost("calendar/remove", { date: en.date, time: en.time, title: en.title }).then(function () { load() })
+                    } }, tt("del")),
+                  ),
                 )
               }),
         ))
@@ -803,6 +808,7 @@ window.__ModuleLoader__.load({
         ".lmem-month-count{font-size:11px;opacity:.5;margin-left:auto}" +
         ".lmem-month .lmem-entry{border-radius:0;border-top:1px solid var(--border-color,rgba(128,128,128,.12));border-left:none;border-right:none}" +
         ".lmem-cal-wrap{display:flex;flex-direction:column;gap:10px;position:relative}" +
+        ".lmem-cal-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:rgba(128,128,128,.05);border:1px solid var(--border-color,rgba(128,128,128,.18));box-shadow:0 1px 6px rgba(0,0,0,.04)}" +
         ".lmem-cal-month{font-weight:700;min-width:96px;text-align:center}" +
         ".lmem-legend{font-size:11px;opacity:.75}" +
         ".lmem-legend-item{margin-right:10px;display:inline-flex;align-items:center}" +
@@ -824,11 +830,15 @@ window.__ModuleLoader__.load({
         ".lmem-cal-slottime{flex:0 0 46px;font-size:11px;opacity:.65;padding-top:4px}" +
         ".lmem-cal-slotevents{min-height:30px;flex:1;border-left:2px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#4f7cff) 24%,transparent);padding-left:9px}" +
         ".lmem-cal{display:flex;flex-direction:column;gap:6px}" +
-        ".lmem-cal-item{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:rgba(128,128,128,.07);font-size:13px}" +
-        ".lmem-cal-item.done{opacity:.5}" +
-        ".lmem-cal-q{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor;opacity:.85;white-space:nowrap}" +
-        ".lmem-cal-date{white-space:nowrap;font-size:12px;opacity:.8}" +
-        ".lmem-cal-title{flex:1;min-width:0;word-break:break-word}" +
+        ".lmem-cal-item{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(128,128,128,.06);border:1px solid transparent;position:relative;overflow:hidden}" +
+        ".lmem-cal-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-q-color,rgba(128,128,128,.4))}" +
+        ".lmem-cal-item:hover{border-color:var(--border-color,rgba(128,128,128,.3))}" +
+        ".lmem-cal-item.done{opacity:.55}" +
+        ".lmem-cal-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
+        ".lmem-cal-title{font-size:13px;word-break:break-word}" +
+        ".lmem-cal-meta{font-size:11px;opacity:.55}" +
+        ".lmem-cal-actions{flex:none}" +
+        ".lmem-cal-q{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor;opacity:.85;white-space:nowrap;flex:none}" +
         ".lmem-scopebar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(128,128,128,.05);border:1px solid var(--border-color,rgba(128,128,128,.18))}" +
         ".lmem-stat{font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(128,128,128,.08);opacity:.85;white-space:nowrap}" +
         ".lmem-stat-high{color:#d64545;background:rgba(214,69,69,.12)}" +
