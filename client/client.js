@@ -64,6 +64,11 @@ window.__ModuleLoader__.load({
       detail: "补充说明（可选）",
       clickAdd: "点击添加事件",
       daySchedule: "当天安排",
+      sourceUser: "用户",
+      sourceAgent: "工具",
+      collapseAll: "全部折叠",
+      expandAll: "全部展开",
+      monthUnits: "个月",
       qUrgentImportant: "重要紧急",
       qImportant: "重要不紧急",
       qUrgent: "紧急不重要",
@@ -115,6 +120,11 @@ window.__ModuleLoader__.load({
       detail: "Details (optional)",
       clickAdd: "Click to add event",
       daySchedule: "Day schedule",
+      sourceUser: "User",
+      sourceAgent: "Agent",
+      collapseAll: "Collapse all",
+      expandAll: "Expand all",
+      monthUnits: "mo",
       qUrgentImportant: "Urgent & important",
       qImportant: "Important",
       qUrgent: "Urgent",
@@ -162,6 +172,111 @@ window.__ModuleLoader__.load({
       if (!ts) return ""
       var d = new Date(ts)
       return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
+    }
+
+    /** 按 updatedAt 月份分组（YYYY-MM），组内按时间倒序，组间月份倒序。 */
+    function groupByMonth(entries) {
+      var groups = []
+      var index = {}
+      var sorted = (entries || []).slice().sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0) })
+      for (var i = 0; i < sorted.length; i++) {
+        var en = sorted[i]
+        var d = en.updatedAt ? new Date(en.updatedAt) : new Date()
+        var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+        if (!index[key]) {
+          index[key] = { key: key, label: key, entries: [] }
+          groups.push(index[key])
+        }
+        index[key].entries.push(en)
+      }
+      return groups
+    }
+
+    /** 来源显示: user=用户输入, agent=工具写入（工作区 · 会话短 id）。 */
+    function sourceLabel(en, tt) {
+      if (en.sourceType === "user") return tt("sourceUser")
+      var ws = en.scope === "project" ? (en.workspace || "?") : tt("globalTab")
+      var sid = en.sessionId ? String(en.sessionId).slice(0, 8) : "-"
+      return ws + " · " + sid
+    }
+
+    /** 按月折叠的条目列表组件（组头可点击折叠，默认只展开最近一个月）。 */
+    function MonthGroupedList(props) {
+      var h = props.el
+      var tt = props.t
+      var entries = props.entries
+      var onEdit = props.onEdit
+      var onDelete = props.onDelete
+      var PRIORITY_COLORS = props.PRIORITY_COLORS
+
+      var groups = groupByMonth(entries)
+      var s0 = react.useState({})
+      var collapsed = s0[0]
+      var setCollapsed = s0[1]
+      var s1 = react.useState(false)
+      var allCollapsed = s1[0]
+      var setAllCollapsed = s1[1]
+
+      // 默认只展开最近一个月
+      react.useEffect(function () {
+        if (groups.length === 0) return
+        var newest = groups[0].key
+        var init = {}
+        for (var i = 0; i < groups.length; i++) {
+          if (groups[i].key !== newest) init[groups[i].key] = true
+        }
+        setCollapsed(init)
+      }, [entries])
+
+      if (groups.length === 0) {
+        return h("div", { className: "lmem-status lmem-center" }, tt("empty"))
+      }
+
+      var toggleAll = function () {
+        var next = !allCollapsed
+        setAllCollapsed(next)
+        var map = {}
+        for (var i = 0; i < groups.length; i++) map[groups[i].key] = next
+        setCollapsed(map)
+      }
+
+      return h("div", { className: "lmem-list" },
+        h("div", { className: "lmem-row" },
+          h("button", { className: "lmem-btn lmem-btn-sm", onClick: toggleAll }, allCollapsed ? tt("expandAll") : tt("collapseAll")),
+          h("span", { className: "lmem-status" }, groups.length + " " + tt("monthUnits")),
+        ),
+        groups.map(function (g) {
+          var isCollapsed = !!collapsed[g.key]
+          return h("div", { key: g.key, className: "lmem-month" },
+            h("div", { className: "lmem-month-head", onClick: function () {
+              var n = Object.assign({}, collapsed)
+              n[g.key] = !isCollapsed
+              setCollapsed(n)
+              setAllCollapsed(false)
+            } },
+              h("span", { className: "lmem-month-caret" }, isCollapsed ? "▸" : "▾"),
+              h("span", { className: "lmem-month-title" }, g.label),
+              h("span", { className: "lmem-month-count" }, g.entries.length),
+            ),
+            !isCollapsed ? g.entries.map(function (en) {
+              return h("div", { key: en.id, className: "lmem-entry" },
+                h("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
+                h("div", { className: "lmem-entry-body" },
+                  h("div", { className: "lmem-entry-title" }, en.title),
+                  h("div", { className: "lmem-entry-content" }, en.content),
+                  h("div", { className: "lmem-entry-meta" },
+                    tt("source") + ": " + sourceLabel(en, tt) + " · " + fmtTime(en.updatedAt),
+                  ),
+                ),
+                h("div", { className: "lmem-row lmem-entry-actions" },
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onEdit(en) } }, tt("edit")),
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onDelete(en.id) } }, tt("del")),
+                ),
+              )
+            }) : null,
+          )
+        }),
+      )
     }
 
     function apply(ctx) {
@@ -239,6 +354,7 @@ window.__ModuleLoader__.load({
           } else {
             payload.scope = tab
             payload.workspace = tab === "project" ? ws : ""
+            payload.sourceType = "user"   // UI 手动输入 → 来源标记为「用户」
             p = post("entries/add", payload)
           }
           p.then(function (r) {
@@ -287,26 +403,10 @@ window.__ModuleLoader__.load({
               )
             : null,
           !formVisible
-            ? el("div", { className: "lmem-list" },
-                entries.length === 0
-                  ? el("div", { className: "lmem-status lmem-center" }, t("empty"))
-                  : entries.map(function (en) {
-                      return el("div", { key: en.id, className: "lmem-entry" },
-                        el("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
-                        el("div", { className: "lmem-entry-body" },
-                          el("div", { className: "lmem-entry-title" }, en.title),
-                          el("div", { className: "lmem-entry-content" }, en.content),
-                          el("div", { className: "lmem-entry-meta" },
-                            t("source") + ": " + (en.scope === "project" ? en.workspace : t("globalTab")) + " · " + (en.sessionId ? String(en.sessionId).slice(0, 8) : "-") + " · " + fmtTime(en.updatedAt),
-                          ),
-                        ),
-                        el("div", { className: "lmem-row lmem-entry-actions" },
-                          el("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) } }, t("edit")),
-                          el("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { deleteEntry(en.id) } }, t("del")),
-                        ),
-                      )
-                    }),
-              )
+            ? el(MonthGroupedList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
+                onEdit: function (en) { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) },
+                onDelete: function (id) { deleteEntry(id) },
+              })
             : null,
           !formVisible ? el("div", { className: "lmem-row" },
             el("button", { className: "lmem-btn", onClick: function () { refresh() } }, t("refresh")),
@@ -349,6 +449,7 @@ window.__ModuleLoader__.load({
           } else {
             payload.scope = "global"
             payload.workspace = ""
+            payload.sourceType = "user"   // UI 手动输入 → 来源标记为「用户」
             p = post("entries/add", payload)
           }
           p.then(function (r) {
@@ -386,24 +487,10 @@ window.__ModuleLoader__.load({
                   ),
                 )
               : null,
-            el("div", { className: "lmem-list" },
-              entries.length === 0
-                ? el("div", { className: "lmem-status lmem-center" }, t("empty"))
-                : entries.map(function (en) {
-                    return el("div", { key: en.id, className: "lmem-entry" },
-                      el("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
-                      el("div", { className: "lmem-entry-body" },
-                        el("div", { className: "lmem-entry-title" }, en.title),
-                        el("div", { className: "lmem-entry-content" }, en.content),
-                        el("div", { className: "lmem-entry-meta" }, t("source") + ": " + t("globalTab") + " · " + (en.sessionId ? String(en.sessionId).slice(0, 8) : "-") + " · " + fmtTime(en.updatedAt)),
-                      ),
-                      el("div", { className: "lmem-row lmem-entry-actions" },
-                        el("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) } }, t("edit")),
-                        el("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { deleteEntry(en.id) } }, t("del")),
-                      ),
-                    )
-                  }),
-            ),
+            el(MonthGroupedList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
+              onEdit: function (en) { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) },
+              onDelete: function (id) { deleteEntry(id) },
+            }),
           )
         } else {
           subBody = el(CalendarPanel, { t: t, el: el, call: call, post: post, QUADRANT_COLORS: QUADRANT_COLORS })
@@ -660,6 +747,13 @@ window.__ModuleLoader__.load({
         ".lmem-entry-content{font-size:13px;opacity:.85;line-height:1.55;white-space:pre-wrap;word-break:break-word}" +
         ".lmem-entry-meta{font-size:11px;opacity:.45;margin-top:5px}" +
         ".lmem-entry-actions{flex:none}" +
+        ".lmem-month{border:1px solid var(--border-color,rgba(128,128,128,.18));border-radius:10px;overflow:hidden}" +
+        ".lmem-month-head{display:flex;gap:8px;align-items:center;padding:7px 10px;cursor:pointer;background:rgba(128,128,128,.05);user-select:none}" +
+        ".lmem-month-head:hover{background:rgba(128,128,128,.1)}" +
+        ".lmem-month-caret{font-size:11px;opacity:.7;width:12px}" +
+        ".lmem-month-title{font-weight:600;font-size:13px}" +
+        ".lmem-month-count{font-size:11px;opacity:.5;margin-left:auto}" +
+        ".lmem-month .lmem-entry{border-radius:0;border-top:1px solid var(--border-color,rgba(128,128,128,.12));border-left:none;border-right:none}" +
         ".lmem-cal-wrap{display:flex;flex-direction:column;gap:10px;position:relative}" +
         ".lmem-cal-month{font-weight:700;min-width:96px;text-align:center}" +
         ".lmem-legend{font-size:11px;opacity:.75}" +
