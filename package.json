@@ -1,0 +1,42 @@
+{
+  "name": "dsh-lite-memory",
+  "version": "0.1.0",
+  "description": "DSH 简化版记忆插件:全局/项目记忆读写与检索(memory_recall/memory_write)、日历与到点提醒(calendar_add/list/done/remove)、对话面板记忆 tab 与设置页日历视图,中英双语自动跟随。",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "BSD-3-Clause",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "memory",
+    "calendar"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  }
+}
