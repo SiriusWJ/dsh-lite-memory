@@ -69,6 +69,7 @@ window.__ModuleLoader__.load({
       collapseAll: "全部折叠",
       expandAll: "全部展开",
       monthUnits: "个月",
+      entryUnits: "条",
       totalEntries: "条目",
       highEntries: "高优先级",
       qUrgentImportant: "重要紧急",
@@ -127,6 +128,7 @@ window.__ModuleLoader__.load({
       collapseAll: "Collapse all",
       expandAll: "Expand all",
       monthUnits: "mo",
+      entryUnits: "entries",
       totalEntries: "Entries",
       highEntries: "High priority",
       qUrgentImportant: "Urgent & important",
@@ -204,8 +206,8 @@ window.__ModuleLoader__.load({
       return ws + " · " + sid
     }
 
-    /** 按月折叠的条目列表组件（组头可点击折叠，默认只展开最近一个月）。 */
-    function MonthGroupedList(props) {
+    /** 按标题折叠的条目列表组件：默认仅显示标题，点击标题展开内容与操作。 */
+    function MemoryList(props) {
       var h = props.el
       var tt = props.t
       var entries = props.entries
@@ -213,71 +215,48 @@ window.__ModuleLoader__.load({
       var onDelete = props.onDelete
       var PRIORITY_COLORS = props.PRIORITY_COLORS
 
-      var groups = groupByMonth(entries)
       var s0 = react.useState({})
-      var collapsed = s0[0]
-      var setCollapsed = s0[1]
-      var s1 = react.useState(false)
-      var allCollapsed = s1[0]
-      var setAllCollapsed = s1[1]
+      var expanded = s0[0]
+      var setExpanded = s0[1]
 
-      // 默认只展开最近一个月
-      react.useEffect(function () {
-        if (groups.length === 0) return
-        var newest = groups[0].key
-        var init = {}
-        for (var i = 0; i < groups.length; i++) {
-          if (groups[i].key !== newest) init[groups[i].key] = true
-        }
-        setCollapsed(init)
-      }, [entries])
-
-      if (groups.length === 0) {
+      if (entries.length === 0) {
         return h("div", { className: "lmem-status lmem-center" }, tt("empty"))
       }
 
+      var isAllOpen = entries.every(function (en) { return !!expanded[en.id] })
+      var toggleOne = function (id) {
+        var n = Object.assign({}, expanded)
+        n[id] = !n[id]
+        setExpanded(n)
+      }
       var toggleAll = function () {
-        var next = !allCollapsed
-        setAllCollapsed(next)
+        var next = !isAllOpen
         var map = {}
-        for (var i = 0; i < groups.length; i++) map[groups[i].key] = next
-        setCollapsed(map)
+        for (var i = 0; i < entries.length; i++) map[entries[i].id] = next
+        setExpanded(map)
       }
 
       return h("div", { className: "lmem-list" },
         h("div", { className: "lmem-row" },
-          h("button", { className: "lmem-btn lmem-btn-sm", onClick: toggleAll }, allCollapsed ? tt("expandAll") : tt("collapseAll")),
-          h("span", { className: "lmem-status" }, groups.length + " " + tt("monthUnits")),
+          h("button", { className: "lmem-btn lmem-btn-sm", onClick: toggleAll }, isAllOpen ? tt("collapseAll") : tt("expandAll")),
+          h("span", { className: "lmem-status" }, entries.length + " " + tt("entryUnits")),
         ),
-        groups.map(function (g) {
-          var isCollapsed = !!collapsed[g.key]
-          return h("div", { key: g.key, className: "lmem-month" },
-            h("div", { className: "lmem-month-head", onClick: function () {
-              var n = Object.assign({}, collapsed)
-              n[g.key] = !isCollapsed
-              setCollapsed(n)
-              setAllCollapsed(false)
-            } },
-              h("span", { className: "lmem-month-caret" }, isCollapsed ? "▸" : "▾"),
-              h("span", { className: "lmem-month-title" }, g.label),
-              h("span", { className: "lmem-month-count" }, g.entries.length),
+        entries.map(function (en) {
+          var isOpen = !!expanded[en.id]
+          return h("div", { key: en.id, className: "lmem-entry", style: { "--lmem-pri-color": (PRIORITY_COLORS[en.priority] || "#8a94a6") } },
+            h("div", { className: "lmem-entry-head", onClick: function () { toggleOne(en.id) } },
+              h("span", { className: "lmem-month-caret" }, isOpen ? "▾" : "▸"),
+              h("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
+              h("div", { className: "lmem-entry-title" }, en.title),
             ),
-            !isCollapsed ? g.entries.map(function (en) {
-              return h("div", { key: en.id, className: "lmem-entry", style: { "--lmem-pri-color": (PRIORITY_COLORS[en.priority] || "#8a94a6") } },
-                h("span", { className: "lmem-pri", style: { background: (PRIORITY_COLORS[en.priority] || "#8a94a6") } }, en.priority),
-                h("div", { className: "lmem-entry-body" },
-                  h("div", { className: "lmem-entry-title" }, en.title),
-                  h("div", { className: "lmem-entry-content" }, en.content),
-                  h("div", { className: "lmem-entry-meta" },
-                    tt("source") + ": " + sourceLabel(en, tt) + " · " + fmtTime(en.updatedAt),
-                  ),
-                ),
-                h("div", { className: "lmem-row lmem-entry-actions" },
-                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onEdit(en) } }, tt("edit")),
-                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onDelete(en.id) } }, tt("del")),
-                ),
-              )
-            }) : null,
+            isOpen ? h("div", { className: "lmem-entry-body" },
+              h("div", { className: "lmem-entry-content" }, en.content),
+              h("div", { className: "lmem-entry-meta" }, tt("source") + ": " + sourceLabel(en, tt) + " · " + fmtTime(en.updatedAt)),
+              h("div", { className: "lmem-row lmem-entry-actions" },
+                h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onEdit(en) } }, tt("edit")),
+                h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { onDelete(en.id) } }, tt("del")),
+              ),
+            ) : null,
           )
         }),
       )
@@ -410,7 +389,7 @@ window.__ModuleLoader__.load({
               )
             : null,
           !formVisible
-            ? el(MonthGroupedList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
+            ? el(MemoryList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
                 onEdit: function (en) { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) },
                 onDelete: function (id) { deleteEntry(id) },
               })
@@ -534,7 +513,7 @@ window.__ModuleLoader__.load({
                   ),
                 )
               : null,
-            el(MonthGroupedList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
+            el(MemoryList, { el: el, t: t, entries: entries, PRIORITY_COLORS: PRIORITY_COLORS,
               onEdit: function (en) { setEditing({ id: en.id, title: en.title, priority: en.priority, content: en.content }) },
               onDelete: function (id) { deleteEntry(id) },
             }),
@@ -788,6 +767,9 @@ window.__ModuleLoader__.load({
         ".lmem-status{font-size:12px;opacity:.65}" +
         ".lmem-center{text-align:center;padding:14px 0}" +
         ".lmem-input{padding:5px 9px;border-radius:7px;border:1px solid var(--border-color,rgba(128,128,128,.35));background:var(--input-bg,rgba(128,128,128,.08));color:inherit;font:inherit}" +
+        "select.lmem-input{color-scheme:inherit}" +
+        "body[data-ds-dark-theme] select.lmem-input{background-color:var(--input-bg,#1e1f26);color:#dcdfe6}" +
+        "body[data-ds-dark-theme] select.lmem-input option{background-color:#1e1f26;color:#dcdfe6}" +
         ".lmem-field{display:flex;flex-direction:column;gap:4px;font-size:12px;opacity:.9}" +
         ".lmem-grow{flex:1}" +
         ".lmem-form{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:10px;border:1px solid var(--border-color,rgba(128,128,128,.3));background:rgba(128,128,128,.05)}" +
@@ -849,6 +831,10 @@ window.__ModuleLoader__.load({
         ".lmem-cal-day{transition:border-color .15s ease,background .15s ease,transform .12s ease}" +
         ".lmem-cal-day:hover{transform:translateY(-1px)}" +
         ".lmem-entry-title{font-size:13.5px}" +
+        ".lmem-entry{flex-direction:column;align-items:stretch;gap:0}" +
+        ".lmem-entry-head{display:flex;gap:8px;align-items:center;cursor:pointer;user-select:none;min-width:0}" +
+        ".lmem-entry-head:hover .lmem-entry-title{opacity:.75}" +
+        ".lmem-entry-head .lmem-entry-title{flex:1;min-width:0;margin-bottom:0}" +
         ".lmem-btn{transition:opacity .15s ease,background .15s ease}" +
         ""
 
