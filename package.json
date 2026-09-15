@@ -30,7 +30,8 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5.0",
+    "dsh": ">=0.1.5-rc.1"
   },
   "dsh": {
     "bundle": {

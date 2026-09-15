@@ -22,6 +22,18 @@
 
 ![定时任务配置](docs/cron-form.png)
 
+## 兼容性 / 支持的 DSH 版本
+
+- **实测版本**：DSH `0.1.5-rc.1`（`@deepseek-ai/dsh-tools` / `dsh-base` 均为 `0.1.5-rc.2`），Node `24.12`
+- **声明范围**：`engines.dsh: >=0.1.5-rc.1` —— 插件市场按 package.json 的 `engines.dsh`（或 `dsh.engines.dsh`）判定宿主兼容性；未声明的插件在市场里显示为「未声明」
+- **Node**：`>=22.5.0`（用到 `node:sqlite`；22.5–23.3 需 `--experimental-sqlite`，24 起默认可用）
+- **用到的宿主能力**（据此可自行判断其他 DSH 版本是否可用）：
+  - `agents.create` / `resume` / `get` / `followup`、`agent.whenIdle`、`agent.cancel`
+  - 事件 `agent/status`、`agent/error`、`session/event`（`turn/end`、`assistant/message`）
+  - `timer.interval`、`webServer.register`、`systemPrompt.context`、`tools.register` + `@deepseek-ai/dsh-tools` 的 `defineTool`
+  - 面板下拉数据源：`workspaceRegistry.list`、`llm.listProviders` / `listModels` / `resolveModelInfo`、`agentDefaultModel.currentSelection`
+  - 上述可选服务缺失时都能降级（下拉退回手填），但缺 `agentDefaultModel` 会让新建会话的 prompt 装配失败
+
 ## 定时任务的触发边界
 
 调度器跑在 `dsh web` 进程内，**没有守护进程，不读写系统 crontab**：
