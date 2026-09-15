@@ -1,8 +1,9 @@
 // dsh-lite-memory —— Client 面（浏览器 bundle，SQLite 版）
 //
 // 对话视图新增「记忆」tab：条目化记忆面板（标题/重要程度/来源/内容，增删改查）。
-// 设置页「记忆」分区：二级菜单（记忆 / 日历）；日历为月视图+当天时间轴+浮层编辑，
-// 面板下方「待执行」「已完成」双 tab 纵向列表。
+// 设置页「记忆」分区：二级菜单（记忆 / 日历 / 定时）；日历为月视图+当天时间轴+浮层编辑，
+// 面板下方「待执行」「已完成」双 tab 纵向列表；定时为 cron 任务列表 + 详情表单 +
+// 表达式实时预览（未来 5 次）+ 执行记录，支持手动新增/编辑/删除/启停/立即运行。
 // 中英双语：跟随 DSH 设置的语言（locale 字典），无手动外观设置、默认字号。
 // 与宿主端通过同源 HTTP 路由通信（/dsh-lite-memory/*）。
 window.__ModuleLoader__.load({
@@ -56,6 +57,7 @@ window.__ModuleLoader__.load({
       adding: "添加中…",
       add: "添加事项",
       today: "今天",
+      done: "完成",
       pendingTab: "待执行",
       doneTab: "已完成",
       noPending: "暂无待执行事项",
@@ -76,6 +78,90 @@ window.__ModuleLoader__.load({
       qImportant: "重要不紧急",
       qUrgent: "紧急不重要",
       qNone: "不重要不紧急",
+      // ── 定时任务 ──
+      subCron: "定时",
+      cronAdd: "新增定时任务",
+      cronEdit: "编辑定时任务",
+      cronName: "任务名",
+      cronNamePh: "如：每日代码巡检",
+      cronExpr: "cron 表达式",
+      cronExprPh: "分 时 日 月 周，如 0 9 * * *",
+      cronPrompt: "提示词",
+      cronPromptPh: "到点让 agent 做什么…",
+      cronCwd: "工作目录",
+      cronPreset: "Preset",
+      cronProvider: "模型 provider",
+      cronModel: "模型",
+      cronEffort: "推理强度",
+      cronTarget: "触发落点",
+      cronTargetNew: "新建会话",
+      cronTargetSession: "投递到当前会话",
+      cronTimeout: "超时（秒）",
+      cronNone: "（默认）",
+      cronWorkspace: "工作区",
+      cronWorkspaceDefault: "默认（dsh web 进程目录）",
+      cronModelLabel: "模型",
+      cronModelDefault: "默认（跟随部署）",
+      cronModelLoading: "加载模型列表…",
+      cronNameOptional: "任务名（可选）",
+      cronNameAuto: "留空自动取提示词前 20 字",
+      cronEffortLabel: "推理强度",
+      cronEffortDefault: "默认",
+      cronAdvanced: "高级设置",
+      cronAdvancedHide: "收起高级",
+      cronRefreshList: "刷新列表",
+      cronProviderPh: "provider",
+      cronModelPh: "model",
+      cronRouteHint: "模型路由只对「新建会话」生效；投递型任务沿用目标会话自身的模型。留空即用默认路由。",
+      cronNext: "下次",
+      cronLast: "上次",
+      cronNever: "不会触发",
+      cronRunNow: "立即运行",
+      cronEnable: "启用",
+      cronDisable: "停用",
+      cronRecords: "执行记录",
+      cronNoJobs: "暂无定时任务",
+      cronNoRuns: "暂无执行记录",
+      cronExprRequired: "cron 表达式无效，需 5 字段（分 时 日 月 周）",
+      cronPromptRequired: "提示词不能为空",
+      cronHint: "仅在 dsh web 进程运行时触发；关闭期间错过的时刻不会补跑。",
+      cronPresetHint: "无人值守执行：请确认所选 preset 的审批策略与工具限制，否则任务可能卡在审批上。",
+      cronPreview: "接下来 5 次：",
+      cronQuick: "常用",
+      cronQuickDaily: "每天",
+      cronQuickWeekly: "每周",
+      cronQuickMonthly: "每月",
+      cronQuickHourly: "每小时",
+      cronQuickEveryN: "每 N 分钟",
+      cronQuickCustom: "自定义",
+      cronWeek: "星期",
+      cronDay: "日",
+      cronMinuteOfHour: "分钟",
+      cronIntervalMin: "间隔（分钟）",
+      cronTime: "时间",
+      cronDescEveryMinute: "每分钟",
+      cronDescEveryN: "每 {n} 分钟",
+      cronDescHourly: "每小时第 {m} 分",
+      cronDescDaily: "每天 {time}",
+      cronDescWeekly: "每{week} {time}",
+      cronDescMonthly: "每月 {day} 日 {time}",
+      cronInvalid: "表达式无效",
+      week0: "周日",
+      week1: "周一",
+      week2: "周二",
+      week3: "周三",
+      week4: "周四",
+      week5: "周五",
+      week6: "周六",
+      stRunning: "运行中",
+      stOk: "成功",
+      stErr: "失败",
+      stTimeout: "超时",
+      stDelivered: "已投递",
+      stSkipped: "已跳过",
+      stNone: "未运行",
+      cronElapsed: "耗时",
+      cronOpenSession: "会话",
     }
     var enDict = {
       nav: "Memory",
@@ -115,6 +201,7 @@ window.__ModuleLoader__.load({
       adding: "Adding…",
       add: "Add",
       today: "Today",
+      done: "Done",
       pendingTab: "Pending",
       doneTab: "Done",
       noPending: "No pending items",
@@ -135,6 +222,90 @@ window.__ModuleLoader__.load({
       qImportant: "Important",
       qUrgent: "Urgent",
       qNone: "Neither",
+      // ── scheduled tasks ──
+      subCron: "Scheduled",
+      cronAdd: "New task",
+      cronEdit: "Edit task",
+      cronName: "Name",
+      cronNamePh: "e.g. Daily code review",
+      cronExpr: "cron expression",
+      cronExprPh: "min hour day month weekday, e.g. 0 9 * * *",
+      cronPrompt: "Prompt",
+      cronPromptPh: "What should the agent do at that time…",
+      cronCwd: "Working dir",
+      cronPreset: "Preset",
+      cronProvider: "Provider",
+      cronModel: "Model",
+      cronEffort: "Reasoning",
+      cronTarget: "Delivery",
+      cronTargetNew: "New session",
+      cronTargetSession: "Current session",
+      cronTimeout: "Timeout (s)",
+      cronNone: "(default)",
+      cronWorkspace: "Workspace",
+      cronWorkspaceDefault: "Default (dsh web process cwd)",
+      cronModelLabel: "Model",
+      cronModelDefault: "Default (follow deployment)",
+      cronModelLoading: "Loading models…",
+      cronNameOptional: "Name (optional)",
+      cronNameAuto: "Blank = first 20 chars of the prompt",
+      cronEffortLabel: "Reasoning",
+      cronEffortDefault: "Default",
+      cronAdvanced: "Advanced",
+      cronAdvancedHide: "Hide advanced",
+      cronRefreshList: "Refresh",
+      cronProviderPh: "provider",
+      cronModelPh: "model",
+      cronRouteHint: "Model routing applies to new sessions only; delivered runs keep the target session's model. Blank = default route.",
+      cronNext: "Next",
+      cronLast: "Last",
+      cronNever: "never",
+      cronRunNow: "Run now",
+      cronEnable: "Enable",
+      cronDisable: "Disable",
+      cronRecords: "History",
+      cronNoJobs: "No scheduled tasks",
+      cronNoRuns: "No runs yet",
+      cronExprRequired: "Invalid cron expression: 5 fields required",
+      cronPromptRequired: "Prompt required",
+      cronHint: "Only fires while the dsh web process is running; missed minutes are dropped.",
+      cronPresetHint: "Unattended run: check the preset's approval policy and tool limits, or the task may stall on approval.",
+      cronPreview: "Next 5 runs:",
+      cronQuick: "Preset",
+      cronQuickDaily: "Daily",
+      cronQuickWeekly: "Weekly",
+      cronQuickMonthly: "Monthly",
+      cronQuickHourly: "Hourly",
+      cronQuickEveryN: "Every N min",
+      cronQuickCustom: "Custom",
+      cronWeek: "Weekday",
+      cronDay: "Day",
+      cronMinuteOfHour: "Minute",
+      cronIntervalMin: "Interval (min)",
+      cronTime: "Time",
+      cronDescEveryMinute: "every minute",
+      cronDescEveryN: "every {n} min",
+      cronDescHourly: "hourly at :{m}",
+      cronDescDaily: "daily {time}",
+      cronDescWeekly: "{week} {time}",
+      cronDescMonthly: "day {day} of month {time}",
+      cronInvalid: "invalid expression",
+      week0: "Sun",
+      week1: "Mon",
+      week2: "Tue",
+      week3: "Wed",
+      week4: "Thu",
+      week5: "Fri",
+      week6: "Sat",
+      stRunning: "running",
+      stOk: "ok",
+      stErr: "failed",
+      stTimeout: "timeout",
+      stDelivered: "delivered",
+      stSkipped: "skipped",
+      stNone: "never run",
+      cronElapsed: "took",
+      cronOpenSession: "session",
     }
 
     // ── 工具 ──────────────────────────────────────────────────────────────────
@@ -178,6 +349,53 @@ window.__ModuleLoader__.load({
       if (!ts) return ""
       var d = new Date(ts)
       return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
+    }
+
+    // ── 定时任务：状态色与描述本地化 ───────────────────────────────────────────
+    var CRON_STATUS_COLORS = {
+      running: "#e6a23c", ok: "#3fa45b", err: "#d64545", timeout: "#d64545",
+      delivered: "#4f7cff", skipped: "#8a94a6",
+    }
+    function cronStatusColor(status) { return CRON_STATUS_COLORS[status] || "#8a94a6" }
+    function cronStatusText(tt, status) {
+      if (!status) return tt("stNone")
+      var key = "st" + String(status).charAt(0).toUpperCase() + String(status).slice(1)
+      return tt(key)
+    }
+    /** 宿主返回的结构化 cron 描述 → 当前语言文案（解析留在宿主，文案留在前端）。 */
+    function cronDescText(tt, d) {
+      if (!d) return ""
+      if (d.kind === "everyMinute") return tt("cronDescEveryMinute")
+      if (d.kind === "everyNMinutes") return tt("cronDescEveryN", { n: d.n })
+      if (d.kind === "hourly") return tt("cronDescHourly", { m: d.minute })
+      if (d.kind === "daily") return tt("cronDescDaily", { time: d.time })
+      if (d.kind === "weekly") return tt("cronDescWeekly", { week: tt("week" + d.week), time: d.time })
+      if (d.kind === "monthly") return tt("cronDescMonthly", { day: d.day, time: d.time })
+      if (d.kind === "invalid") return tt("cronInvalid")
+      return d.expr || ""
+    }
+    function fmtClock(ts) {
+      return ts ? fmtTime(ts) : "—"
+    }
+    function fmtDuration(from, to) {
+      if (!from || !to || to < from) return ""
+      var s = Math.round((to - from) / 1000)
+      if (s < 60) return s + "s"
+      return Math.floor(s / 60) + "m" + String(s % 60).padStart(2, "0") + "s"
+    }
+    /** 快捷档 → cron 表达式（分 时 日 月 周）。 */
+    function cronQuickExpr(quick, f) {
+      var parts = String(f.time || "09:00").split(":")
+      var h = Number(parts[0])
+      var mi = Number(parts[1])
+      if (!isFinite(h)) h = 9
+      if (!isFinite(mi)) mi = 0
+      if (quick === "everyN") return "*/" + (Number(f.n) > 0 ? Math.floor(Number(f.n)) : 30) + " * * * *"
+      if (quick === "hourly") return mi + " * * * *"
+      if (quick === "daily") return mi + " " + h + " * * *"
+      if (quick === "weekly") return mi + " " + h + " * * " + (Number(f.week) || 0)
+      if (quick === "monthly") return mi + " " + h + " " + (Number(f.day) || 1) + " * *"
+      return ""
     }
 
     /** 按 updatedAt 月份分组（YYYY-MM），组内按时间倒序，组间月份倒序。 */
@@ -518,14 +736,17 @@ window.__ModuleLoader__.load({
               onDelete: function (id) { deleteEntry(id) },
             }),
           )
-        } else {
+        } else if (sub === "calendar") {
           subBody = el(CalendarPanel, { t: t, el: el, call: call, post: post, QUADRANT_COLORS: QUADRANT_COLORS })
+        } else {
+          subBody = el(CronPanel, { t: t, el: el, call: call, post: post })
         }
 
         return el("div", { className: "lmem-view" },
           el("div", { className: "lmem-subtabs" },
             el("button", { className: "lmem-tab" + (sub === "memory" ? " active" : ""), onClick: function () { setSub("memory") } }, t("subMemory")),
             el("button", { className: "lmem-tab" + (sub === "calendar" ? " active" : ""), onClick: function () { setSub("calendar") } }, t("subCalendar")),
+            el("button", { className: "lmem-tab" + (sub === "cron" ? " active" : ""), onClick: function () { setSub("cron") } }, t("subCron")),
           ),
           subBody,
         )
@@ -746,7 +967,372 @@ window.__ModuleLoader__.load({
               }),
         ))
 
-        return h("div", { className: "lmem-cal-wrap" }, rows)
+        return h.apply(null, ["div", { className: "lmem-cal-wrap" }].concat(rows))
+      }
+
+      // ── 定时任务面板（列表 + 详情表单 + 表达式实时预览 + 执行记录）────────────
+      function CronPanel(props) {
+        var tt = props.t
+        var h = props.el
+        var apiGet = props.call
+        var apiPost = props.post
+
+        var s0 = react.useState([])
+        var jobs = s0[0]
+        var setJobs = s0[1]
+        var s1 = react.useState(null)
+        var draft = s1[0]
+        var setDraft = s1[1]
+        var s2 = react.useState("")
+        var msg = s2[0]
+        var setMsg = s2[1]
+        var s3 = react.useState(false)
+        var saving = s3[0]
+        var setSaving = s3[1]
+        var s4 = react.useState(null)
+        var preview = s4[0]
+        var setPreview = s4[1]
+        var s5 = react.useState(null)
+        var runsFor = s5[0]
+        var setRunsFor = s5[1]
+        var s6 = react.useState([])
+        var runs = s6[0]
+        var setRuns = s6[1]
+        var s7 = react.useState(0)
+        var busyId = s7[0]
+        var setBusyId = s7[1]
+        // 下拉数据源：工作区真路径 + 可选模型目录（来自 host 的 workspaceRegistry / llm）
+        var s8 = react.useState({ workspaces: [], processCwd: "", providers: [], defaultModel: null })
+        var opts = s8[0]
+        var setOpts = s8[1]
+        var s9 = react.useState(false)
+        var adv = s9[0]
+        var setAdv = s9[1]
+        var s10 = react.useState(null)
+        var modelInfo = s10[0]   // 选中具体模型后拿到它支持的推理强度
+        var setModelInfo = s10[1]
+
+        function loadOptions() {
+          apiGet("cron/workspaces", {}).then(function (r) {
+            if (r && r.ok) setOpts(function (prev) { return Object.assign({}, prev, { workspaces: r.workspaces || [], processCwd: r.processCwd || "" }) })
+          })
+          apiGet("cron/models", {}).then(function (r) {
+            if (r && r.ok) setOpts(function (prev) { return Object.assign({}, prev, { providers: r.providers || [], defaultModel: r.default || null }) })
+          })
+        }
+        react.useEffect(function () { loadOptions() }, [])
+
+        /** 选中某个模型 → 查它支持的推理强度；选「默认」则清掉路由。 */
+        function pickModel(provider, model) {
+          var next = Object.assign({}, draft, { provider: provider, model: model })
+          if (!provider || !model) {
+            next.effort = ""
+            setModelInfo(null)
+            setDraft(next)
+            return
+          }
+          setModelInfo(null)
+          apiPost("cron/model-info", { provider: provider, model: model }).then(function (r) {
+            if (!r || !r.ok) return
+            setModelInfo(r)
+            var ids = (r.efforts || []).map(function (x) { return x.id })
+            if (next.effort && ids.indexOf(next.effort) < 0) setDraft(Object.assign({}, next, { effort: "" }))
+          })
+          setDraft(next)
+        }
+
+        function load() {
+          apiGet("cron", {}).then(function (r) { if (r && r.ok) setJobs(r.jobs || []) })
+        }
+        function refreshRuns(id) {
+          apiGet("cron/runs", { jobId: id, limit: 20 }).then(function (r) { if (r && r.ok) setRuns(r.runs || []) })
+        }
+        react.useEffect(function () { load() }, [])
+
+        var exprNow = draft !== null ? String(draft.expr || "") : ""
+        var draftOpen = draft !== null
+        // 表达式实时预览：停止输入 250ms 后再请求，避免每击键都打后端。
+        react.useEffect(function () {
+          if (!draftOpen || !exprNow.trim()) { setPreview(null); return }
+          var timer = setTimeout(function () {
+            apiPost("cron/preview", { expr: exprNow }).then(function (r) { if (r && r.ok) setPreview(r) })
+          }, 250)
+          return function () { clearTimeout(timer) }
+        }, [exprNow, draftOpen])
+
+        function newDraft() {
+          setMsg("")
+          setPreview(null)
+          setAdv(false)
+          setModelInfo(null)
+          setDraft({ name: "", expr: "0 9 * * *", prompt: "", cwd: "", preset: "", provider: "", model: "", effort: "", target: "new", timeoutSec: 600, quick: "daily", qf: { time: "09:00", week: 1, day: 1, n: 30 } })
+        }
+        function editDraft(job) {
+          setMsg("")
+          setPreview(null)
+          setAdv(false)
+          setModelInfo(null)
+          setDraft({ id: job.id, name: job.name, expr: job.expr, prompt: job.prompt, cwd: job.cwd || "", preset: job.agentPreset || "", provider: job.provider || "", model: job.model || "", effort: job.effort || "", target: job.target, timeoutSec: job.timeoutSec, quick: "custom", qf: { time: "09:00", week: 1, day: 1, n: 30 } })
+          if (job.provider && job.model) {
+            apiPost("cron/model-info", { provider: job.provider, model: job.model }).then(function (r) { if (r && r.ok) setModelInfo(r) })
+          }
+        }
+        function patch(p) { setDraft(Object.assign({}, draft, p)) }
+        function patchQuick(quick, qfPatch) {
+          var qf = Object.assign({}, draft.qf, qfPatch || {})
+          var next = Object.assign({}, draft, { quick: quick, qf: qf })
+          if (quick !== "custom") next.expr = cronQuickExpr(quick, qf)
+          setDraft(next)
+        }
+        function save() {
+          if (!draft) return
+          if (!String(draft.prompt || "").trim()) { setMsg(tt("cronPromptRequired")); return }
+          if (preview === null || preview.valid !== true) { setMsg(tt("cronExprRequired")); return }
+          setSaving(true)
+          var payload = {
+            name: draft.name, expr: draft.expr, prompt: draft.prompt, cwd: draft.cwd,
+            preset: draft.preset, provider: draft.provider, model: draft.model, effort: draft.effort,
+            target: draft.target, timeoutSec: draft.timeoutSec,
+          }
+          var p
+          if (draft.id !== undefined && draft.id !== null) { payload.id = draft.id; p = apiPost("cron/update", payload) }
+          else p = apiPost("cron/add", payload)
+          p.then(function (r) {
+            setSaving(false)
+            setMsg((r && r.message) || tt("saved"))
+            if (r && r.ok) { setDraft(null); setPreview(null); load() }
+          })
+        }
+        function removeJob(job) {
+          apiPost("cron/remove", { id: job.id }).then(function (r) {
+            setMsg((r && r.message) || "")
+            if (runsFor === job.id) { setRunsFor(null); setRuns([]) }
+            load()
+          })
+        }
+        function toggleJob(job) {
+          apiPost("cron/toggle", { id: job.id, enabled: !job.enabled }).then(function (r) { setMsg((r && r.message) || ""); load() })
+        }
+        function runNow(job) {
+          setBusyId(job.id)
+          setMsg(tt("stRunning") + "…")
+          apiPost("cron/run", { id: job.id }).then(function (r) {
+            setBusyId(0)
+            setMsg((r && r.message) || "")
+            load()
+            if (runsFor === job.id) refreshRuns(job.id)
+          })
+        }
+        function toggleRuns(job) {
+          if (runsFor === job.id) { setRunsFor(null); setRuns([]); return }
+          setRunsFor(job.id)
+          refreshRuns(job.id)
+        }
+
+        var rows = []
+        rows.push(h("div", { className: "lmem-row" },
+          h("span", { className: "lmem-status" }, tt("cronHint")),
+          h("span", { style: { flex: 1 } }),
+          h("button", { className: "lmem-btn", onClick: function () { load() } }, tt("refresh")),
+          h("button", { className: "lmem-btn primary", onClick: newDraft }, "+ " + tt("cronAdd")),
+        ))
+        if (msg) rows.push(h("div", { className: "lmem-status" }, msg))
+
+        if (draft !== null) {
+          var qf = draft.qf || {}
+          var quickField = null
+          if (draft.quick === "everyN") {
+            quickField = h("div", { className: "lmem-field" }, tt("cronIntervalMin"),
+              h("input", { className: "lmem-input", type: "number", min: 1, max: 59, value: qf.n, onChange: function (e) { patchQuick("everyN", { n: Number(e.target.value) }) } }))
+          } else if (draft.quick === "hourly") {
+            var hm = String(qf.time || "09:00").split(":")
+            quickField = h("div", { className: "lmem-field" }, tt("cronMinuteOfHour"),
+              h("input", { className: "lmem-input", type: "number", min: 0, max: 59, value: Number(hm[1]) || 0, onChange: function (e) { patchQuick("hourly", { time: "00:" + String(Math.min(59, Math.max(0, Number(e.target.value) || 0))).padStart(2, "0") }) } }))
+          } else if (draft.quick === "weekly") {
+            quickField = h("div", { className: "lmem-field" }, tt("cronWeek"),
+              h("select", { className: "lmem-input", value: qf.week, onChange: function (e) { patchQuick("weekly", { week: Number(e.target.value) }) } },
+                [0, 1, 2, 3, 4, 5, 6].map(function (w) { return h("option", { key: w, value: w }, tt("week" + w)) })))
+          } else if (draft.quick === "monthly") {
+            quickField = h("div", { className: "lmem-field" }, tt("cronDay"),
+              h("input", { className: "lmem-input", type: "number", min: 1, max: 31, value: qf.day, onChange: function (e) { patchQuick("monthly", { day: Number(e.target.value) }) } }))
+          }
+          if (draft.quick === "daily" || draft.quick === "weekly" || draft.quick === "monthly") {
+            quickField = h("span", { className: "lmem-row" }, quickField,
+              h("div", { className: "lmem-field" }, tt("cronTime"),
+                h("input", { className: "lmem-input", type: "time", value: qf.time || "09:00", onChange: function (e) { patchQuick(draft.quick, { time: e.target.value || "09:00" }) } })))
+          }
+          var previewBox = null
+          if (preview !== null) {
+            if (preview.valid === true) {
+              previewBox = h("div", { className: "lmem-preview" },
+                h("span", { className: "lmem-status" }, tt("cronPreview") + " " + cronDescText(tt, preview.description)),
+                (preview.next || []).map(function (ts) { return h("span", { key: ts, className: "lmem-stat" }, fmtTime(ts)) }))
+            } else {
+              previewBox = h("div", { className: "lmem-status lmem-err" }, tt("cronExprRequired"))
+            }
+          }
+          // ── 工作区下拉（真路径）─────────────────────────────────────────────
+          var wsList = (opts.workspaces || [])
+          var wsChildren = [h("option", { key: "__default__", value: "" }, tt("cronWorkspaceDefault") + (opts.processCwd ? " · " + opts.processCwd : ""))]
+          wsList.forEach(function (w) {
+            wsChildren.push(h("option", { key: w.path, value: w.path }, (w.title && w.title !== w.path ? w.title + " · " : "") + w.path))
+          })
+          if (draft.cwd && !wsList.some(function (w) { return w.path === draft.cwd })) {
+            wsChildren.push(h("option", { key: draft.cwd, value: draft.cwd }, draft.cwd))
+          }
+          var workspaceSelect = h("select", { className: "lmem-input", value: draft.cwd, onChange: function (e) { patch({ cwd: e.target.value }) } }, wsChildren)
+
+          // ── 模型下拉（按 provider 分组）─────────────────────────────────────
+          var currentModel = draft.provider && draft.model ? draft.provider + "|" + draft.model : ""
+          var modelChildren = [h("option", { key: "__default__", value: "" },
+            tt("cronModelDefault") + (opts.defaultModel ? " · " + opts.defaultModel.provider + "/" + opts.defaultModel.model : ""))]
+          var groups = []
+          var modelKnown = false
+          ;(opts.providers || []).forEach(function (p) {
+            var items = (p.models || []).map(function (m) {
+              var v = p.id + "|" + m.id
+              if (v === currentModel) modelKnown = true
+              return h("option", { key: v, value: v }, (m.name && m.name !== m.id ? m.name + " · " : "") + m.id)
+            })
+            if (items.length > 0) groups.push(h("optgroup", { key: p.id, label: p.name || p.id }, items))
+          })
+          modelChildren = modelChildren.concat(groups)
+          if (currentModel && !modelKnown) {
+            modelChildren.push(h("option", { key: currentModel, value: currentModel }, currentModel.replace("|", " / ")))
+          }
+          var modelSelect = h("select", {
+            className: "lmem-input", value: currentModel,
+            onChange: function (e) {
+              var v = e.target.value
+              var i = v.indexOf("|")
+              if (i < 0) { pickModel("", ""); return }
+              pickModel(v.slice(0, i), v.slice(i + 1))
+            },
+          }, modelChildren)
+
+          // 一个模型目录都取不到时退回手填，保证不是死路
+          var modelPicker = groups.length > 0
+            ? modelSelect
+            : h("span", { className: "lmem-row" },
+              h("input", { className: "lmem-input", value: draft.provider, placeholder: tt("cronProviderPh"), onChange: function (e) { patch({ provider: e.target.value }) } }),
+              h("input", { className: "lmem-input", value: draft.model, placeholder: tt("cronModelPh"), onChange: function (e) { patch({ model: e.target.value }) } }))
+
+          // 选中具体模型后，才出现它真正支持的推理强度
+          var effortField = (modelInfo !== null && (modelInfo.efforts || []).length > 0)
+            ? h("div", { className: "lmem-field" }, tt("cronEffortLabel"),
+              h("select", { className: "lmem-input", value: draft.effort, onChange: function (e) { patch({ effort: e.target.value }) } },
+                [h("option", { key: "__default__", value: "" }, tt("cronEffortDefault"))].concat(
+                  modelInfo.efforts.map(function (x) { return h("option", { key: x.id, value: x.id }, x.name) }))))
+            : null
+
+          // ── 高级设置（表达式原文 / 超时 / preset / 落点）────────────────────
+          var advanced = adv
+            ? h("div", { className: "lmem-form-adv" },
+              h("div", { className: "lmem-row" },
+                h("div", { className: "lmem-field lmem-grow" }, tt("cronExpr"),
+                  h("input", { className: "lmem-input lmem-mono", value: draft.expr, readOnly: draft.quick !== "custom", placeholder: tt("cronExprPh"), onChange: function (e) { patch({ expr: e.target.value }) } })),
+                h("div", { className: "lmem-field" }, tt("cronTimeout"),
+                  h("input", { className: "lmem-input", type: "number", min: 30, value: draft.timeoutSec, onChange: function (e) { patch({ timeoutSec: Number(e.target.value) || 600 }) } })),
+              ),
+              h("div", { className: "lmem-row" },
+                h("div", { className: "lmem-field lmem-grow" }, tt("cronPreset"),
+                  h("input", { className: "lmem-input", value: draft.preset, placeholder: tt("cronNone"), onChange: function (e) { patch({ preset: e.target.value }) } })),
+                h("div", { className: "lmem-field" }, tt("cronTarget"),
+                  h("select", { className: "lmem-input", value: draft.target, onChange: function (e) { patch({ target: e.target.value }) } },
+                    h("option", { value: "new" }, tt("cronTargetNew")),
+                    h("option", { value: "session" }, tt("cronTargetSession")))),
+              ),
+              h("div", { className: "lmem-status" }, tt("cronRouteHint")),
+              h("div", { className: "lmem-status" }, tt("cronPresetHint")),
+            )
+            : null
+
+          rows.push(h("div", { className: "lmem-form" },
+            h("div", { className: "lmem-row" },
+              h("div", { className: "lmem-field lmem-grow" }, tt("cronNameOptional"),
+                h("input", { className: "lmem-input", value: draft.name, placeholder: tt("cronNameAuto"), onChange: function (e) { patch({ name: e.target.value }) } })),
+              h("div", { className: "lmem-field lmem-grow" }, tt("cronWorkspace"), workspaceSelect),
+            ),
+            h("div", { className: "lmem-row" },
+              h("div", { className: "lmem-field" }, tt("cronQuick"),
+                h("select", { className: "lmem-input", value: draft.quick, onChange: function (e) { patchQuick(e.target.value, {}) } },
+                  [["daily", "cronQuickDaily"], ["weekly", "cronQuickWeekly"], ["monthly", "cronQuickMonthly"], ["hourly", "cronQuickHourly"], ["everyN", "cronQuickEveryN"], ["custom", "cronQuickCustom"]]
+                    .map(function (o) { return h("option", { key: o[0], value: o[0] }, tt(o[1])) }))),
+              quickField,
+            ),
+            h("div", { className: "lmem-field" }, tt("cronPrompt"),
+              h("textarea", { className: "lmem-area lmem-area-sm", value: draft.prompt, placeholder: tt("cronPromptPh"), onChange: function (e) { patch({ prompt: e.target.value }) } })),
+            h("div", { className: "lmem-row" },
+              h("div", { className: "lmem-field lmem-grow" }, tt("cronModelLabel"), modelPicker),
+              effortField,
+            ),
+            previewBox,
+            h("div", { className: "lmem-row" },
+              h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { setAdv(!adv) } }, adv ? tt("cronAdvancedHide") : tt("cronAdvanced")),
+              h("button", { className: "lmem-btn lmem-btn-sm", onClick: loadOptions }, "⟳ " + tt("cronRefreshList")),
+            ),
+            advanced,
+            h("div", { className: "lmem-row" },
+              h("button", { className: "lmem-btn primary", onClick: save, disabled: saving }, saving ? tt("saving") : tt("save")),
+              h("button", { className: "lmem-btn", onClick: function () { setDraft(null); setPreview(null) }, disabled: saving }, tt("cancel")),
+            ),
+          ))
+        }
+
+        rows.push(h("div", { className: "lmem-list" },
+          jobs.length === 0
+            ? h("div", { className: "lmem-status lmem-center" }, tt("cronNoJobs"))
+            : jobs.map(function (job) {
+              var acting = busyId === job.id || job.lastStatus === "running"
+              var tone = acting ? "running" : (job.enabled ? (job.lastStatus || "") : "skipped")
+              return h("div", { key: job.id, className: "lmem-entry", style: { "--lmem-pri-color": cronStatusColor(tone) } },
+                h("div", { className: "lmem-entry-head" },
+                  h("span", { className: "lmem-dot", style: { background: cronStatusColor(tone) }, title: cronStatusText(tt, job.lastStatus) }),
+                  h("div", { className: "lmem-entry-title" }, job.name),
+                  h("span", { className: "lmem-cron-expr" }, job.expr),
+                ),
+                h("div", { className: "lmem-entry-meta" },
+                  cronDescText(tt, job.description) + " · " + tt("cronNext") + " " + (job.enabled ? fmtClock(job.nextRunAt) : tt("cronNever")) +
+                  " · " + tt("cronLast") + " " + cronStatusText(tt, job.lastStatus)),
+                (job.provider || job.model || job.effort || job.agentPreset)
+                  ? h("div", { className: "lmem-entry-meta" },
+                    [
+                      (job.provider || job.model) ? (job.provider || "?") + "/" + (job.model || "?") : "",
+                      job.effort ? "effort=" + job.effort : "",
+                      job.agentPreset ? "preset=" + job.agentPreset : "",
+                      job.cwd ? "📁 " + String(job.cwd).split(/[\\/]/).filter(Boolean).pop() : "",
+                    ].filter(Boolean).join(" · "))
+                  : null,
+                h("div", { className: "lmem-row lmem-entry-actions" },
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { toggleJob(job) } }, job.enabled ? tt("cronDisable") : tt("cronEnable")),
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { runNow(job) }, disabled: acting }, acting ? tt("stRunning") : tt("cronRunNow")),
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { toggleRuns(job) } }, tt("cronRecords")),
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { editDraft(job) } }, tt("edit")),
+                  h("button", { className: "lmem-btn lmem-btn-sm", onClick: function () { removeJob(job) } }, tt("del")),
+                ),
+                runsFor === job.id
+                  ? h("div", { className: "lmem-runs" },
+                    runs.length === 0
+                      ? h("div", { className: "lmem-status" }, tt("cronNoRuns"))
+                      : runs.map(function (run) {
+                        return h("div", { key: run.id, className: "lmem-run", style: { "--lmem-pri-color": cronStatusColor(run.status) } },
+                          h("div", { className: "lmem-row" },
+                            h("span", { className: "lmem-dot", style: { background: cronStatusColor(run.status) } }),
+                            h("span", { className: "lmem-run-st" }, cronStatusText(tt, run.status)),
+                            h("span", { className: "lmem-status" }, fmtTime(run.startedAt)),
+                            h("span", { className: "lmem-status" }, tt("cronElapsed") + " " + fmtDuration(run.startedAt, run.endedAt)),
+                            run.sessionId ? h("span", { className: "lmem-status" }, tt("cronOpenSession") + " " + String(run.sessionId).slice(0, 24)) : null,
+                          ),
+                          h("div", { className: "lmem-run-sum" }, run.error ? run.error : String(run.summary || "").slice(0, 400)),
+                        )
+                      }),
+                  )
+                  : null,
+              )
+            }),
+        ))
+
+        return h.apply(null, ["div", { className: "lmem-cal-wrap" }].concat(rows))
       }
 
       // ── 样式 ────────────────────────────────────────────────────────────────
@@ -836,6 +1422,17 @@ window.__ModuleLoader__.load({
         ".lmem-entry-head:hover .lmem-entry-title{opacity:.75}" +
         ".lmem-entry-head .lmem-entry-title{flex:1;min-width:0;margin-bottom:0}" +
         ".lmem-btn{transition:opacity .15s ease,background .15s ease}" +
+        ".lmem-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}" +
+        ".lmem-cron-expr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;padding:1px 7px;border-radius:6px;background:rgba(128,128,128,.14);flex:none}" +
+        ".lmem-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}" +
+        ".lmem-preview{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-radius:8px;background:rgba(128,128,128,.06)}" +
+        ".lmem-err{color:#d64545}" +
+        ".lmem-runs{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color,rgba(128,128,128,.2))}" +
+        ".lmem-form-adv{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(128,128,128,.05)}" +
+        ".lmem-run{display:flex;flex-direction:column;gap:3px;padding:6px 10px;border-radius:8px;background:rgba(128,128,128,.06);position:relative;overflow:hidden;font-size:12px}" +
+        ".lmem-run::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-pri-color,rgba(128,128,128,.4))}" +
+        ".lmem-run-st{font-weight:600}" +
+        ".lmem-run-sum{opacity:.8;white-space:pre-wrap;word-break:break-word;max-height:130px;overflow:auto}" +
         ""
 
       // ── 样式注入（bundle 无 styles builtin，挂 <style> 到 document.head，随插件卸载清理）──
