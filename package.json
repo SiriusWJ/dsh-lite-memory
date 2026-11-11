@@ -1,6 +1,6 @@
 {
   "name": "dsh-lite-memory",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "DSH 简化版记忆插件:SQLite 条目化记忆(标题/重要程度/来源/内容,增删改查)+ 日历与到点提醒(月视图+时间轴+待执行/已完成双tab)+ 定时任务(cron 驱动的进程内调度:到点拉起会话跑提示词,表达式实时预览/立即运行/执行记录/启停),设置页记忆/日历/定时三子页,中英双语自动跟随。内置:记忆标题经 systemPrompt.context 动态注入为 durable user-role 快照(全局+当前项目,CRUD 后自动刷新),比静态 section 更省 token。",
   "type": "module",
   "main": "lib/index.js",

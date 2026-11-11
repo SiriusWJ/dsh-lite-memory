@@ -26,6 +26,7 @@ window.__ModuleLoader__.load({
       globalTab: "全局",
       projectTab: "项目",
       workspace: "工作区",
+      noWorkspace: "当前会话没有工作区",
       addEntry: "添加条目",
       editEntry: "编辑条目",
       title: "标题",
@@ -170,6 +171,7 @@ window.__ModuleLoader__.load({
       globalTab: "Global",
       projectTab: "Project",
       workspace: "Workspace",
+      noWorkspace: "No workspace in this session",
       addEntry: "Add entry",
       editEntry: "Edit entry",
       title: "Title",
@@ -493,51 +495,41 @@ window.__ModuleLoader__.load({
 
       var el = react.createElement
 
-      // ── 对话「记忆」tab：条目化记忆面板 ────────────────────────────────────
+      // ── 对话「记忆」tab：只显示当前会话工作区的条目化记忆 ──────────────────
       function MemoryView(props) {
         var sessionId = props.sessionId || ""
-        var s0 = react.useState("project")
-        var tab = s0[0]
-        var setTab = s0[1]
-        var s1 = react.useState([])
-        var entries = s1[0]
-        var setEntries = s1[1]
+        var s0 = react.useState([])
+        var entries = s0[0]
+        var setEntries = s0[1]
+        var s1 = react.useState("")
+        var ws = s1[0]
+        var setWs = s1[1]
         var s2 = react.useState("")
-        var ws = s2[0]
-        var setWs = s2[1]
-        var s3 = react.useState([])
-        var workspaces = s3[0]
-        var setWorkspaces = s3[1]
-        var s4 = react.useState("")
-        var status = s4[0]
-        var setStatus = s4[1]
-        var s5 = react.useState(null)
-        var editing = s5[0]   // null | {id?, title, priority, content}
-        var setEditing = s5[1]
+        var status = s2[0]
+        var setStatus = s2[1]
+        var s3 = react.useState(null)
+        var editing = s3[0]   // null | {id?, title, priority, content}
+        var setEditing = s3[1]
 
-        var refresh = function (which, workspace) {
-          var scope = which !== undefined ? which : tab
+        // 工作区固定为当前会话的工作区：面板不再提供工作区选择器，全局记忆在设置页维护。
+        var refresh = function (workspace) {
           var w = workspace !== undefined ? workspace : ws
+          if (!w) { setEntries([]); return Promise.resolve() }
           setStatus(t("loading"))
-          return call("entries", { scope: scope, workspace: scope === "project" ? w : "" }).then(function (r) {
+          return call("entries", { scope: "project", workspace: w }).then(function (r) {
             if (r && r.ok) { setEntries(r.entries || []); setStatus("") }
             else setStatus((r && r.message) || t("loading"))
           })
         }
 
         react.useEffect(function () {
-          if (tab === "global") {
-            setWs("")
-            refresh("global", "")
-          } else {
-            Promise.all([call("workspace", { sessionId: sessionId }), call("workspaces", {})]).then(function (rs) {
-              var cur = (rs[0] && rs[0].ok && rs[0].workspace) || ""
-              setWs(cur)
-              if (rs[1] && rs[1].ok) setWorkspaces(rs[1].workspaces || [])
-              refresh("project", cur)
-            })
-          }
-        }, [tab, sessionId])
+          call("workspace", { sessionId: sessionId }).then(function (r) {
+            var cur = (r && r.ok && r.workspace) || ""
+            setWs(cur)
+            if (!cur) { setEntries([]); setStatus(t("noWorkspace")); return }
+            refresh(cur)
+          })
+        }, [sessionId])
 
         var saveEntry = function () {
           if (!String(editing.title || "").trim()) { setStatus(t("titleRequired")); return }
@@ -553,8 +545,8 @@ window.__ModuleLoader__.load({
             payload.id = editing.id
             p = post("entries/update", payload)
           } else {
-            payload.scope = tab
-            payload.workspace = tab === "project" ? ws : ""
+            payload.scope = "project"
+            payload.workspace = ws
             payload.sourceType = "user"   // UI 手动输入 → 来源标记为「用户」
             p = post("entries/add", payload)
           }
@@ -571,24 +563,14 @@ window.__ModuleLoader__.load({
         var formVisible = editing !== null
         return el("div", { className: "lmem-view" },
           el("div", { className: "lmem-tabs" },
-            el("button", { className: "lmem-tab" + (tab === "global" ? " active" : ""), onClick: function () { setTab("global") } }, t("globalTab")),
-            el("button", { className: "lmem-tab" + (tab === "project" ? " active" : ""), onClick: function () { setTab("project") } }, t("projectTab")),
+            el("span", { className: "lmem-status" }, ws ? t("workspace") + " · " + ws : ""),
             el("span", { style: { flex: 1 } }),
             el("button", { className: "lmem-btn", onClick: function () { refresh() }, title: t("refresh") }, "⟳"),
-            el("button", { className: "lmem-btn primary", onClick: function () { setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
+            el("button", { className: "lmem-btn primary", disabled: !ws, onClick: function () { if (ws) setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
           ),
-          tab === "project" && workspaces.length > 1
-            ? el("div", { className: "lmem-row" },
-                el("label", { className: "lmem-field" }, t("workspace"),
-                  el("select", { className: "lmem-input", value: ws, onChange: function (e) { setWs(e.target.value); refresh("project", e.target.value) } },
-                    workspaces.map(function (w) { return el("option", { key: w, value: w }, w) }),
-                  ),
-                ),
-                el("span", { className: "lmem-status" }, status),
-              )
-            : el("div", { className: "lmem-row" },
-                el("span", { className: "lmem-status" }, status),
-              ),
+          el("div", { className: "lmem-row" },
+            el("span", { className: "lmem-status" }, status),
+          ),
           formVisible
             ? el("div", { className: "lmem-form" },
                 el("div", { className: "lmem-row" },
