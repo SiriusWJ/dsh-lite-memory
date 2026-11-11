@@ -24,15 +24,20 @@
 
 ## 兼容性 / 支持的 DSH 版本
 
-- **实测版本**：DSH `0.1.5-rc.1`（`@deepseek-ai/dsh-tools` / `dsh-base` 均为 `0.1.5-rc.2`），Node `24.12`
-- **声明范围**：`engines.dsh: >=0.1.5-rc.1` —— 插件市场按 package.json 的 `engines.dsh`（或 `dsh.engines.dsh`）判定宿主兼容性；未声明的插件在市场里显示为「未声明」
+- **本版实测**：DSH `0.2.2-rc.1`（桌面版；Node `24.21`）
+- **上一版实测**：DSH `0.1.5-rc.1`（`0.4.1` 及更早）
+- **声明范围**：`engines.dsh: ">=0.2.2-rc.1"` —— 插件市场（dshmarket）按 package.json 的 `engines.dsh`（或 `dsh.engines.dsh`）判定宿主兼容性；未声明显示「未声明」，不满足则拒绝安装
+- **为什么改声明**：按 node-semver 的预发布规则，`0.2.2-rc.1` **不满足** 旧声明 `>=0.1.5-rc.1`（预发布版本只有比较器同为 `主.次.补` 且带预发布标签时才被纳入），旧声明在当前桌面包上会被市场判为不兼容
 - **Node**：`>=22.5.0`（用到 `node:sqlite`；22.5–23.3 需 `--experimental-sqlite`，24 起默认可用）
 - **用到的宿主能力**（据此可自行判断其他 DSH 版本是否可用）：
-  - `agents.create` / `resume` / `get` / `followup`、`agent.whenIdle`、`agent.cancel`
-  - 事件 `agent/status`、`agent/error`、`session/event`（`turn/end`、`assistant/message`）
-  - `timer.interval`、`webServer.register`、`systemPrompt.context`、`tools.register` + `@deepseek-ai/dsh-tools` 的 `defineTool`
-  - 面板下拉数据源：`workspaceRegistry.list`、`llm.listProviders` / `listModels` / `resolveModelInfo`、`agentDefaultModel.currentSelection`
+  - `agents.create` / `resume({ resumeSessionId })` / `get` / `followup({ content, source })`、`handle.dispose()`、`agent.cancel({ kind, reason })`
+  - 事件 `agent/status`、`agent/error`、`session/event(session, event)`（`turn/start`、`turn/end`、`assistant/message`）
+  - `timer.interval`、`webServer.register`、`systemPrompt.context({ name, order, text })`、`tools.register`
+  - 面板下拉数据源：`workspaceRegistry.list`、`llm.listProviders` / `listModels` / `resolveModelInfo`、`agentDefaultModel.currentSelection`、`agentPresets.resolve`
   - 上述可选服务缺失时都能降级（下拉退回手填），但缺 `agentDefaultModel` 会让新建会话的 prompt 装配失败
+- **0.5.0 针对 0.2.x 修的两处宿主契约**：
+  1. 工具注册不再 `createRequire` + `import()` 解析 `@deepseek-ai/dsh-tools`（桌面版把它打进 `app.asar`，且 `agentPresets.list()` 已不再返回 `path`，旧侦测直接落空导致 13 个工具静默不注册）。改为自带等价 `defineTool`（`lib/define-tool.js`）：属性级 `required` 编译成 JSON Schema、执行前预校验；同时避免从 profile `node_modules` 解析到镜像副本污染整个 base 层。
+  2. 投递消息改用 v4 会话格式的 producer-owned source：`{ kind: 'dsh-lite-memory', form, summary }`；旧的 `{ kind: 'plugin', plugin: … }` 会被 `format v4 message requires a producer-owned source kind` 拒绝（日历提醒与定时任务都受影响）。
 
 ## 定时任务的触发边界
 
@@ -46,13 +51,17 @@
 
 ## 安装
 
+在插件市场（设置 → 插件市场，dshmarket）里搜 `dsh-lite-memory` 一键安装，或按市场条目用命令行安装：
+
 ```bash
-cd ~/.dsh/profiles/web
-pnpm add dsh-lite-memory
-# 或 npm install dsh-lite-memory
+dsh plugin --profile web add github:SiriusWJ/dsh-lite-memory
 ```
 
-然后在 `package.json` 的 `dsh.profile.bundles` 数组追加 `"dsh-lite-memory"`，重启 dsh web 生效。
+安装后重启 dsh web 生效。
+
+> npm 上的 `dsh-lite-memory` 是另一位作者的实现（regrevia），与本插件无关。
+> 本插件经 **GitHub 源**分发（市场条目 `install: dsh plugin … add github:SiriusWJ/dsh-lite-memory`），
+> 不要 `npm i dsh-lite-memory`。
 
 ## 存储
 
