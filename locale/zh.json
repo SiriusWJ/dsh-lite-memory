@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "轻量记忆",
-    "description": "SQLite 条目化记忆、日历到点提醒、cron 定时任务 · 支持 DSH ≥ 0.2.2-rc.1"
+    "description": "SQLite 条目化记忆，带检索 / 时间范围 / 状态工具 · 支持 DSH ≥ 0.2.2-rc.1"
   }
 }

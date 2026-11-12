@@ -1,7 +1,7 @@
 {
   "name": "dsh-lite-memory",
-  "version": "0.5.2",
-  "description": "DSH 简化版记忆插件:SQLite 条目化记忆(标题/重要程度/来源/内容,增删改查)+ 日历与到点提醒(月视图+时间轴+待执行/已完成双tab)+ 定时任务(cron 驱动的进程内调度:到点拉起会话跑提示词,表达式实时预览/立即运行/执行记录/启停),设置页记忆/日历/定时三子页,中英双语自动跟随。内置:记忆标题经 systemPrompt.context 动态注入为 durable user-role 快照(全局+当前项目,CRUD 后自动刷新),比静态 section 更省 token。",
+  "version": "0.6.0",
+  "description": "DSH 轻量记忆插件:SQLite 条目化记忆(标题/重要程度/来源/内容,增删改查)+ 记忆标题经 systemPrompt.context 动态注入为 durable user-role 快照(全局+当前项目,CRUD 后自动刷新),比静态 section 更省 token;设置页与对话面板双入口,中英双语自动跟随。只做记忆:无日历、无定时任务。",
   "icon": "./assets/icon.svg",
   "type": "module",
   "main": "lib/index.js",
@@ -16,10 +16,8 @@
     "dsh-plugin",
     "deepseek-harness",
     "memory",
-    "calendar",
-    "cron",
-    "scheduler",
-    "tasks"
+    "sqlite",
+    "recall"
   ],
   "exports": {
     ".": "./lib/index.js",
@@ -36,7 +34,6 @@
     "locale",
     "cordis.patch.yml",
     "README.md",
-    "docs",
     "LICENSE"
   ],
   "engines": {
