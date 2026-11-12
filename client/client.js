@@ -26,6 +26,7 @@ window.__ModuleLoader__.load({
       globalTab: "全局",
       projectTab: "项目",
       workspace: "工作区",
+      currentWorkspace: "当前工作区",
       noWorkspace: "当前会话没有工作区",
       addEntry: "添加条目",
       editEntry: "编辑条目",
@@ -171,6 +172,7 @@ window.__ModuleLoader__.load({
       globalTab: "Global",
       projectTab: "Project",
       workspace: "Workspace",
+      currentWorkspace: "Current workspace",
       noWorkspace: "No workspace in this session",
       addEntry: "Add entry",
       editEntry: "Edit entry",
@@ -442,7 +444,7 @@ window.__ModuleLoader__.load({
 
       var el = react.createElement
 
-      // ── 对话「记忆」tab：只显示当前会话工作区的条目化记忆 ──────────────────
+      // ── 对话「记忆」tab：当前工作区 / 全局 两个范围 ────────────────────────
       function MemoryView(props) {
         var sessionId = props.sessionId || ""
         var s0 = react.useState([])
@@ -457,26 +459,31 @@ window.__ModuleLoader__.load({
         var s3 = react.useState(null)
         var editing = s3[0]   // null | {id?, title, priority, content}
         var setEditing = s3[1]
+        var s4 = react.useState("project")
+        var scope = s4[0]     // project = 当前会话工作区；global = 全局记忆
+        var setScope = s4[1]
 
-        // 工作区固定为当前会话的工作区：面板不再提供工作区选择器，全局记忆在设置页维护。
-        var refresh = function (workspace) {
+        // 项目范围固定为当前会话的工作区；全局范围不绑定工作区。没有工作区选择器。
+        var refresh = function (whichScope, workspace) {
+          var sc = whichScope !== undefined ? whichScope : scope
           var w = workspace !== undefined ? workspace : ws
-          if (!w) { setEntries([]); return Promise.resolve() }
+          if (sc === "project" && !w) { setEntries([]); return Promise.resolve() }
           setStatus(t("loading"))
-          return call("entries", { scope: "project", workspace: w }).then(function (r) {
+          return call("entries", { scope: sc, workspace: sc === "project" ? w : "" }).then(function (r) {
             if (r && r.ok) { setEntries(r.entries || []); setStatus("") }
             else setStatus((r && r.message) || t("loading"))
           })
         }
 
         react.useEffect(function () {
+          if (scope === "global") { refresh("global", ""); return }
           call("workspace", { sessionId: sessionId }).then(function (r) {
             var cur = (r && r.ok && r.workspace) || ""
             setWs(cur)
             if (!cur) { setEntries([]); setStatus(t("noWorkspace")); return }
-            refresh(cur)
+            refresh("project", cur)
           })
-        }, [sessionId])
+        }, [scope, sessionId])
 
         var saveEntry = function () {
           if (!String(editing.title || "").trim()) { setStatus(t("titleRequired")); return }
@@ -492,8 +499,8 @@ window.__ModuleLoader__.load({
             payload.id = editing.id
             p = post("entries/update", payload)
           } else {
-            payload.scope = "project"
-            payload.workspace = ws
+            payload.scope = scope
+            payload.workspace = scope === "project" ? ws : ""
             payload.sourceType = "user"   // UI 手动输入 → 来源标记为「用户」
             p = post("entries/add", payload)
           }
@@ -510,10 +517,12 @@ window.__ModuleLoader__.load({
         var formVisible = editing !== null
         return el("div", { className: "lmem-view" },
           el("div", { className: "lmem-tabs" },
-            el("span", { className: "lmem-status" }, ws ? t("workspace") + " · " + ws : ""),
+            el("button", { className: "lmem-tab" + (scope === "project" ? " active" : ""), onClick: function () { setScope("project") } }, t("currentWorkspace")),
+            el("button", { className: "lmem-tab" + (scope === "global" ? " active" : ""), onClick: function () { setScope("global") } }, t("globalTab")),
+            el("span", { className: "lmem-status" }, scope === "project" && ws ? t("workspace") + " · " + ws : ""),
             el("span", { style: { flex: 1 } }),
             el("button", { className: "lmem-btn", onClick: function () { refresh() }, title: t("refresh") }, "⟳"),
-            el("button", { className: "lmem-btn primary", disabled: !ws, onClick: function () { if (ws) setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
+            el("button", { className: "lmem-btn primary", disabled: scope === "project" && !ws, onClick: function () { if (scope === "global" || ws) setEditing({ title: "", priority: "中", content: "" }) } }, "+ " + t("addEntry")),
           ),
           el("div", { className: "lmem-row" },
             el("span", { className: "lmem-status" }, status),
@@ -662,11 +671,25 @@ window.__ModuleLoader__.load({
         )
       }
 
+      // ── 插件详情分区：记忆管理挂在 dsh-lite-memory 自己的插件页里 ────────────
+      function MemoryPluginSection(props) {
+        var subject = props && props.subject
+        var pkgName = subject && subject.pkg ? subject.pkg.name : ""
+        var rowName = subject && subject.row ? subject.row.moduleName : ""
+        // 这个 slot 会喂给每个插件的详情页，只在自己的页面渲染
+        if (pkgName !== name && rowName !== name) return null
+        return el("div", { className: "lmem-view" },
+          el("div", { className: "lmem-tabs" },
+            el("span", { style: { fontWeight: 600 } }, t("nav")),
+          ),
+          el(SettingsMemory, null),
+        )
+      }
+
       // ── 样式 ────────────────────────────────────────────────────────────────
       var css = "" +
         ".lmem-view{display:flex;flex-direction:column;gap:10px;padding:12px 14px;height:100%;min-height:0}" +
         ".lmem-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}" +
-        ".lmem-subtabs{display:flex;gap:6px;border-bottom:1px solid var(--border-color,rgba(128,128,128,.25));padding-bottom:8px}" +
         ".lmem-tab{padding:4px 14px;border-radius:999px;border:1px solid transparent;background:transparent;color:inherit;cursor:pointer;opacity:.7}" +
         ".lmem-tab.active{opacity:1;border-color:currentColor}" +
         ".lmem-area{flex:1;min-height:0;width:100%;resize:none;font:inherit;line-height:1.6;padding:10px;border-radius:8px;border:1px solid var(--border-color,rgba(128,128,128,.35));background:var(--input-bg,rgba(128,128,128,.08));color:inherit;box-sizing:border-box}" +
@@ -702,38 +725,8 @@ window.__ModuleLoader__.load({
         ".lmem-month-title{font-weight:600;font-size:13px}" +
         ".lmem-month-count{font-size:11px;opacity:.5;margin-left:auto}" +
         ".lmem-month .lmem-entry{border-radius:0;border-top:1px solid var(--border-color,rgba(128,128,128,.12));border-left:none;border-right:none}" +
-        ".lmem-cal-wrap{display:flex;flex-direction:column;gap:10px;position:relative}" +
-        ".lmem-cal-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:rgba(128,128,128,.05);border:1px solid var(--border-color,rgba(128,128,128,.18));box-shadow:0 1px 6px rgba(0,0,0,.04)}" +
-        ".lmem-cal-month{font-weight:700;min-width:96px;text-align:center}" +
         ".lmem-legend{font-size:11px;opacity:.75}" +
         ".lmem-legend-item{margin-right:10px;display:inline-flex;align-items:center}" +
-        ".lmem-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}" +
-        ".lmem-cal-dow-cell{text-align:center;font-size:11px;opacity:.55}" +
-        ".lmem-cal-gridrow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}" +
-        ".lmem-cal-day{min-height:58px;padding:4px;cursor:pointer;border-radius:8px;border:1px solid color-mix(in srgb,var(--border-color,rgba(128,128,128,.3)) 55%,transparent);background:rgba(128,128,128,.04);overflow:hidden}" +
-        ".lmem-cal-day:hover{border-color:var(--dsw-alias-brand-primary,#4f7cff)}" +
-        ".lmem-cal-day.today{border-color:var(--dsw-alias-brand-primary,#4f7cff);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f7cff) 10%,transparent)}" +
-        ".lmem-cal-daynum{font-size:11.5px;font-weight:500;opacity:.7;margin-bottom:3px}" +
-        ".lmem-cal-day.today .lmem-cal-daynum{font-weight:700;opacity:1}" +
-        ".lmem-cal-chip{font-size:10.5px;line-height:1.35;padding:1px 4px;border-radius:4px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-        ".lmem-cal-chip.done{opacity:.5;text-decoration:line-through}" +
-        ".lmem-cal-more{font-size:10px;opacity:.5}" +
-        ".lmem-cal-modal{position:absolute;inset:0;z-index:10;overflow:auto;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--dsw-alias-bg-overlay,rgba(24,26,32,.94));backdrop-filter:blur(20px) saturate(1.4);border:1px solid var(--border-color,rgba(128,128,128,.35))}" +
-        ".lmem-cal-modal-title{font-weight:700}" +
-        ".lmem-cal-slot{display:flex;gap:8px;cursor:pointer;padding:2px 0}" +
-        ".lmem-cal-slot:hover{background:rgba(128,128,128,.06);border-radius:6px}" +
-        ".lmem-cal-slottime{flex:0 0 46px;font-size:11px;opacity:.65;padding-top:4px}" +
-        ".lmem-cal-slotevents{min-height:30px;flex:1;border-left:2px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#4f7cff) 24%,transparent);padding-left:9px}" +
-        ".lmem-cal{display:flex;flex-direction:column;gap:6px}" +
-        ".lmem-cal-item{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(128,128,128,.06);border:1px solid transparent;position:relative;overflow:hidden}" +
-        ".lmem-cal-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-q-color,rgba(128,128,128,.4))}" +
-        ".lmem-cal-item:hover{border-color:var(--border-color,rgba(128,128,128,.3))}" +
-        ".lmem-cal-item.done{opacity:.55}" +
-        ".lmem-cal-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
-        ".lmem-cal-title{font-size:13px;word-break:break-word}" +
-        ".lmem-cal-meta{font-size:11px;opacity:.55}" +
-        ".lmem-cal-actions{flex:none}" +
-        ".lmem-cal-q{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor;opacity:.85;white-space:nowrap;flex:none}" +
         ".lmem-scopebar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(128,128,128,.05);border:1px solid var(--border-color,rgba(128,128,128,.18))}" +
         ".lmem-stat{font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(128,128,128,.08);opacity:.85;white-space:nowrap}" +
         ".lmem-stat-high{color:#d64545;background:rgba(214,69,69,.12)}" +
@@ -741,25 +734,16 @@ window.__ModuleLoader__.load({
         ".lmem-entry::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-pri-color,rgba(128,128,128,.35));border-radius:3px 0 0 3px}" +
         ".lmem-month-head{transition:background .15s ease}" +
         ".lmem-month-count{background:rgba(128,128,128,.1);padding:1px 8px;border-radius:999px}" +
-        ".lmem-cal-day{transition:border-color .15s ease,background .15s ease,transform .12s ease}" +
-        ".lmem-cal-day:hover{transform:translateY(-1px)}" +
         ".lmem-entry-title{font-size:13.5px}" +
         ".lmem-entry{flex-direction:column;align-items:stretch;gap:0}" +
         ".lmem-entry-head{display:flex;gap:8px;align-items:center;cursor:pointer;user-select:none;min-width:0}" +
         ".lmem-entry-head:hover .lmem-entry-title{opacity:.75}" +
         ".lmem-entry-head .lmem-entry-title{flex:1;min-width:0;margin-bottom:0}" +
         ".lmem-btn{transition:opacity .15s ease,background .15s ease}" +
-        ".lmem-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}" +
         ".lmem-cron-expr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;padding:1px 7px;border-radius:6px;background:rgba(128,128,128,.14);flex:none}" +
-        ".lmem-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}" +
         ".lmem-preview{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-radius:8px;background:rgba(128,128,128,.06)}" +
         ".lmem-err{color:#d64545}" +
-        ".lmem-runs{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color,rgba(128,128,128,.2))}" +
         ".lmem-form-adv{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(128,128,128,.05)}" +
-        ".lmem-run{display:flex;flex-direction:column;gap:3px;padding:6px 10px;border-radius:8px;background:rgba(128,128,128,.06);position:relative;overflow:hidden;font-size:12px}" +
-        ".lmem-run::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lmem-pri-color,rgba(128,128,128,.4))}" +
-        ".lmem-run-st{font-weight:600}" +
-        ".lmem-run-sum{opacity:.8;white-space:pre-wrap;word-break:break-word;max-height:130px;overflow:auto}" +
         ""
 
       // ── 样式注入（bundle 无 styles builtin，挂 <style> 到 document.head，随插件卸载清理）──
@@ -783,10 +767,10 @@ window.__ModuleLoader__.load({
         )
       })
 
-      slots.inject("settings.section", function () {
+      slots.inject("plugins.detail.section", function () {
         return slots.register(
-          { name: "settings.section", id: "memory", order: 25, priority: 0, locale: NS, label: function () { return t("nav") } },
-          function () { return el(SettingsMemory, null) },
+          { name: "plugins.detail.section", id: "memory", order: 30, priority: 0, locale: NS },
+          function (props) { return el(MemoryPluginSection, { subject: props && props.subject }) },
         )
       })
     }
